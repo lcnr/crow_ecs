@@ -1,7 +1,11 @@
 #![forbid(unsafe_code)]
 //! A simple ecs utility crate using no unsafe code.
 
-use std::{iter, mem, ops::RangeFrom, slice};
+use std::{
+    iter, mem,
+    ops::{Not, RangeFrom},
+    slice,
+};
 
 mod tuple;
 
@@ -51,6 +55,40 @@ impl<T> Storage<T> {
     /// Removes all compo
     pub fn drain(&mut self) -> Drain<T> {
         Drain(self)
+    }
+}
+
+pub struct NegatedStorage<'a, T>(&'a Storage<T>);
+
+impl<'a, T> Not for &'a Storage<T> {
+    type Output = NegatedStorage<'a, T>;
+
+    fn not(self) -> NegatedStorage<'a, T> {
+        NegatedStorage(self)
+    }
+}
+
+pub struct NegatedIter<'a, T>(Iter<'a, T>);
+
+impl<'a, T> Iterator for NegatedIter<'a, T> {
+    type Item = ();
+
+    fn next(&mut self) -> Option<()> {
+        if let Some(_) = self.0.next() {
+            None
+        } else {
+            Some(())
+        }
+    }
+}
+
+impl<'a, T> Joinable for NegatedStorage<'a, T> {
+    type Joined = NegatedIter<'a, T>;
+    type Item = ();
+
+    fn join(self) -> Joined<Self> {
+        let storage = self.0.join();
+        Joined::new(NegatedIter(storage.iter), storage.len)
     }
 }
 
@@ -209,6 +247,27 @@ mod tests {
             assert_eq!(d_entry, 12);
             assert_eq!(e_entry, 17);
             assert_eq!(entity, b);
+        }
+    }
+
+    #[test]
+    fn negate() {
+        let a = Entity(0);
+        let b = Entity(1);
+        let c = Entity(2);
+
+        let mut d: Storage<u32> = Storage::new();
+        let mut e: Storage<u8> = Storage::new();
+
+        d.insert(a, 7);
+        d.insert(b, 12);
+        e.insert(b, 17);
+        e.insert(c, 0);
+
+        for (&d_entry, e_entry, entity) in (&d, !&e, Entities).join() {
+            assert_eq!(d_entry, 7);
+            assert_eq!(e_entry, ());
+            assert_eq!(entity, a);
         }
     }
 }
