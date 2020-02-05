@@ -4,6 +4,18 @@ use crate::{Joinable, Joined};
 
 pub struct TupleJoin2<A: Joinable, B: Joinable>(A::Joined, B::Joined);
 
+impl<A, B> Clone for TupleJoin2<A, B>
+where
+    A: Joinable,
+    A::Joined: Clone,
+    B: Joinable,
+    B::Joined: Clone, 
+{
+    fn clone(&self) -> Self {
+        TupleJoin2(self.0.clone(), self.1.clone())
+    }
+}
+
 impl<A, B> Iterator for TupleJoin2<A, B>
 where
     A: Joinable,
@@ -39,6 +51,20 @@ where
 }
 
 pub struct TupleJoin3<A: Joinable, B: Joinable, C: Joinable>(A::Joined, B::Joined, C::Joined);
+
+impl<A, B, C> Clone for TupleJoin3<A, B, C>
+where
+    A: Joinable,
+    A::Joined: Clone,
+    B: Joinable,
+    B::Joined: Clone,
+    C: Joinable,
+    C::Joined: Clone,
+{
+    fn clone(&self) -> Self {
+        TupleJoin3(self.0.clone(), self.1.clone(), self.2.clone())
+    }
+}
 
 impl<A, B, C> Iterator for TupleJoin3<A, B, C>
 where
@@ -87,6 +113,22 @@ pub struct TupleJoin4<A: Joinable, B: Joinable, C: Joinable, D: Joinable>(
     C::Joined,
     D::Joined,
 );
+
+impl<A, B, C, D> Clone for TupleJoin4<A, B, C, D>
+where
+    A: Joinable,
+    A::Joined: Clone,
+    B: Joinable,
+    B::Joined: Clone,
+    C: Joinable,
+    C::Joined: Clone,
+    D: Joinable,
+    D::Joined: Clone,
+{
+    fn clone(&self) -> Self {
+        TupleJoin4(self.0.clone(), self.1.clone(), self.2.clone(), self.3.clone())
+    }
+}
 
 impl<A, B, C, D> Iterator for TupleJoin4<A, B, C, D>
 where
