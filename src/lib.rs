@@ -86,6 +86,12 @@ impl<'a, T> Not for &'a &mut Storage<T> {
 
 pub struct NegatedIter<'a, T>(Iter<'a, T>);
 
+impl<'a, T> Clone for NegatedIter<'a, T> {
+    fn clone(&self) -> Self {
+        NegatedIter(self.0.clone())
+    }
+}
+
 impl<'a, T> Iterator for NegatedIter<'a, T> {
     type Item = ();
 
@@ -137,6 +143,12 @@ impl<'a, T> Joinable for Drain<'a, T> {
 }
 
 pub struct Iter<'a, T>(slice::Iter<'a, Option<T>>);
+
+impl<'a, T> Clone for Iter<'a, T> {
+    fn clone(&self) -> Self {
+        Iter(self.0.clone())
+    }
+}
 
 impl<'a, T> Iterator for Iter<'a, T> {
     type Item = &'a T;
