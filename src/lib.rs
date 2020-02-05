@@ -193,6 +193,17 @@ impl<'a, T> Joinable for &'a mut Storage<T> {
     }
 }
 
+impl<'a, T> Joinable for &'a mut &mut Storage<T> {
+    type Joined = IterMut<'a, T>;
+    type Item = &'a mut T;
+
+    fn join(self) -> Joined<Self> {
+        let len = self.inner.len();
+        Joined::new(IterMut(self.inner.iter_mut()), len)
+    }
+}
+
+
 pub struct Entities;
 
 impl Joinable for Entities {
