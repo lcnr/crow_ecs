@@ -340,4 +340,12 @@ mod tests {
             assert_eq!(entity, a);
         }
     }
+
+    #[test]
+    fn entities_clone() {
+        let _ = Entities.join().clone();
+        let _ = (Entities, Entities).join().clone();
+        let _ = (Entities, Entities, Entities).join().clone();
+        let _ = (Entities, Entities, Entities, Entities).join().clone();
+    }
 }
