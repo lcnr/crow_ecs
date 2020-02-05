@@ -203,7 +203,6 @@ impl<'a, T> Joinable for &'a mut &mut Storage<T> {
     }
 }
 
-
 pub struct Entities;
 
 impl Joinable for Entities {
@@ -224,6 +223,20 @@ pub struct Joined<T: Joinable + ?Sized> {
 impl<T: Joinable + ?Sized> Joined<T> {
     pub fn new(iter: T::Joined, len: usize) -> Self {
         Self { iter, len, pos: 0 }
+    }
+}
+
+impl<T> Clone for Joined<T>
+where
+    T: Joinable,
+    T::Joined: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            iter: self.iter.clone(),
+            len: self.len,
+            pos: self.pos,
+        }
     }
 }
 
