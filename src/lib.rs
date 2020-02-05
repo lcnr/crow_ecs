@@ -68,6 +68,14 @@ impl<'a, T> Not for &'a Storage<T> {
     }
 }
 
+impl<'a, T> Not for &'a &Storage<T> {
+    type Output = NegatedStorage<'a, T>;
+
+    fn not(self) -> NegatedStorage<'a, T> {
+        NegatedStorage(self)
+    }
+}
+
 impl<'a, T> Not for &'a &mut Storage<T> {
     type Output = NegatedStorage<'a, T>;
 
@@ -139,6 +147,15 @@ impl<'a, T> Iterator for Iter<'a, T> {
 }
 
 impl<'a, T> Joinable for &'a Storage<T> {
+    type Joined = Iter<'a, T>;
+    type Item = &'a T;
+
+    fn join(self) -> Joined<Self> {
+        Joined::new(Iter(self.inner.iter()), self.inner.len())
+    }
+}
+
+impl<'a, T> Joinable for &'a &Storage<T> {
     type Joined = Iter<'a, T>;
     type Item = &'a T;
 
