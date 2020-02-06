@@ -1,176 +1,40 @@
-use std::cmp;
-
 use crate::{Joinable, Joined};
 
-pub struct TupleJoin2<A: Joinable, B: Joinable>(A::Joined, B::Joined);
+#[derive(Debug, Clone)]
+pub struct TupleJoin<T>(T);
 
-impl<A, B> Clone for TupleJoin2<A, B>
-where
-    A: Joinable,
-    A::Joined: Clone,
-    B: Joinable,
-    B::Joined: Clone, 
-{
-    fn clone(&self) -> Self {
-        TupleJoin2(self.0.clone(), self.1.clone())
-    }
-}
+macro_rules! tuple_join {
+    ($($par:ident $var:ident: $e:tt),*) => {
+        impl<$($par: Iterator),*> Iterator for TupleJoin<($($par),*)>
+        {
+            type Item = ($($par::Item),*);
 
-impl<A, B> Iterator for TupleJoin2<A, B>
-where
-    A: Joinable,
-    B: Joinable,
-{
-    type Item = (A::Item, B::Item);
+            fn next(&mut self) -> Option<Self::Item> {
+                $(let $var = (self.0).$e.next();)*
 
-    fn next(&mut self) -> Option<Self::Item> {
-        let a = self.0.next();
-        let b = self.1.next();
+                match ($($var),*) {
+                    ($(Some($var)),*) => Some(($($var),*)),
+                    _ => None,
+                }
+            }
+        }
 
-        match (a, b) {
-            (Some(a), Some(b)) => Some((a, b)),
-            _ => None,
+        impl<$($par: Joinable),*> Joinable for ($($par),*)
+        {
+            type Joined = TupleJoin<($($par::Joined),*)>;
+            type Item = ($($par::Item),*);
+
+            fn join(self) -> Joined<Self> {
+                $(let $var = self.$e.join();)*
+
+                Joined::new(TupleJoin(($($var.iter),*)), std::usize::MAX.$(min($var.len)).*)
+            }
         }
     }
 }
 
-impl<A, B> Joinable for (A, B)
-where
-    A: Joinable,
-    B: Joinable,
-{
-    type Joined = TupleJoin2<A, B>;
-    type Item = (A::Item, B::Item);
-
-    fn join(self) -> Joined<Self> {
-        let a = self.0.join();
-        let b = self.1.join();
-
-        Joined::new(TupleJoin2(a.iter, b.iter), cmp::min(a.len, b.len))
-    }
-}
-
-pub struct TupleJoin3<A: Joinable, B: Joinable, C: Joinable>(A::Joined, B::Joined, C::Joined);
-
-impl<A, B, C> Clone for TupleJoin3<A, B, C>
-where
-    A: Joinable,
-    A::Joined: Clone,
-    B: Joinable,
-    B::Joined: Clone,
-    C: Joinable,
-    C::Joined: Clone,
-{
-    fn clone(&self) -> Self {
-        TupleJoin3(self.0.clone(), self.1.clone(), self.2.clone())
-    }
-}
-
-impl<A, B, C> Iterator for TupleJoin3<A, B, C>
-where
-    A: Joinable,
-    B: Joinable,
-    C: Joinable,
-{
-    type Item = (A::Item, B::Item, C::Item);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let a = self.0.next();
-        let b = self.1.next();
-        let c = self.2.next();
-
-        match (a, b, c) {
-            (Some(a), Some(b), Some(c)) => Some((a, b, c)),
-            _ => None,
-        }
-    }
-}
-
-impl<A, B, C> Joinable for (A, B, C)
-where
-    A: Joinable,
-    B: Joinable,
-    C: Joinable,
-{
-    type Joined = TupleJoin3<A, B, C>;
-    type Item = (A::Item, B::Item, C::Item);
-
-    fn join(self) -> Joined<Self> {
-        let a = self.0.join();
-        let b = self.1.join();
-        let c = self.2.join();
-
-        Joined::new(
-            TupleJoin3(a.iter, b.iter, c.iter),
-            a.len.min(b.len).min(c.len),
-        )
-    }
-}
-
-pub struct TupleJoin4<A: Joinable, B: Joinable, C: Joinable, D: Joinable>(
-    A::Joined,
-    B::Joined,
-    C::Joined,
-    D::Joined,
-);
-
-impl<A, B, C, D> Clone for TupleJoin4<A, B, C, D>
-where
-    A: Joinable,
-    A::Joined: Clone,
-    B: Joinable,
-    B::Joined: Clone,
-    C: Joinable,
-    C::Joined: Clone,
-    D: Joinable,
-    D::Joined: Clone,
-{
-    fn clone(&self) -> Self {
-        TupleJoin4(self.0.clone(), self.1.clone(), self.2.clone(), self.3.clone())
-    }
-}
-
-impl<A, B, C, D> Iterator for TupleJoin4<A, B, C, D>
-where
-    A: Joinable,
-    B: Joinable,
-    C: Joinable,
-    D: Joinable,
-{
-    type Item = (A::Item, B::Item, C::Item, D::Item);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let a = self.0.next();
-        let b = self.1.next();
-        let c = self.2.next();
-        let d = self.3.next();
-
-        match (a, b, c, d) {
-            (Some(a), Some(b), Some(c), Some(d)) => Some((a, b, c, d)),
-            _ => None,
-        }
-    }
-}
-
-impl<A, B, C, D> Joinable for (A, B, C, D)
-where
-    A: Joinable,
-    B: Joinable,
-    C: Joinable,
-    D: Joinable,
-{
-    type Joined = TupleJoin4<A, B, C, D>;
-    type Item = (A::Item, B::Item, C::Item, D::Item);
-
-    fn join(self) -> Joined<Self> {
-        let a = self.0.join();
-        let b = self.1.join();
-        let c = self.2.join();
-        let d = self.3.join();
-
-        Joined::new(
-            TupleJoin4(a.iter, b.iter, c.iter, d.iter),
-            a.len.min(b.len).min(c.len).min(d.len),
-        )
-    }
-}
+tuple_join!(A a: 0, B b: 1);
+tuple_join!(A a: 0, B b: 1, C c: 2);
+tuple_join!(A a: 0, B b: 1, C c: 2, D d: 3);
+tuple_join!(A a: 0, B b: 1, C c: 2, D d: 3, E e: 4);
+tuple_join!(A a: 0, B b: 1, C c: 2, D d: 3, E e: 4, F f: 5);
