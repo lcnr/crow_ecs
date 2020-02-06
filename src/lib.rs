@@ -12,7 +12,7 @@ mod tuple;
 /// This crate does currently not protect from generation missmatches.
 ///
 /// To delete an entity one has to remove it from all storages, which is probably not the best approach.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Entity(pub usize);
 
 #[derive(Debug, Clone)]
