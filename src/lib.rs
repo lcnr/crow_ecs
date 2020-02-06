@@ -20,6 +20,12 @@ pub struct Storage<T> {
     inner: Vec<Option<T>>,
 }
 
+impl<T> Default for Storage<T> {
+    fn default() -> Self {
+        Storage::new()
+    }
+}
+
 impl<T> Storage<T> {
     pub fn new() -> Self {
         Self { inner: Vec::new() }
