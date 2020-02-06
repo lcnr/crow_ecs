@@ -41,6 +41,23 @@ impl<T> Storage<T> {
         }
     }
 
+    /// Returns the component of the entity at `idx` in case it exists.
+    pub fn get(&self, idx: Entity) -> Option<&T> {
+        if let Some(i) = self.inner.get(idx.0) {
+            i.as_ref()
+        } else {
+            None
+        }
+    }
+
+    pub fn get_mut(&mut self, idx: Entity) -> Option<&mut T> {
+        if let Some(i) = self.inner.get_mut(idx.0) {
+            i.as_mut()
+        } else {
+            None
+        }
+    }
+
     /// Inserts a component for the entity at `idx`.
     ///
     /// In case the component was already present the previous
