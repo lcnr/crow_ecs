@@ -133,7 +133,7 @@ impl<'a, T> Joinable for NegatedStorage<'a, T> {
 
     fn join(self) -> Joined<Self> {
         let storage = self.0.join();
-        Joined::new(NegatedIter(storage.iter), storage.len)
+        Joined::new(NegatedIter(storage.iter), std::usize::MAX)
     }
 }
 
@@ -281,6 +281,7 @@ impl<T: Joinable + ?Sized> Iterator for Joined<T> {
     fn next(&mut self) -> Option<T::Item> {
         while self.pos < self.len {
             if let Some(item) = self.iter.next() {
+                self.pos += 1;
                 return Some(item);
             } else {
                 self.pos += 1;
