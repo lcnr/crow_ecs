@@ -292,11 +292,36 @@ impl<T: Joinable + ?Sized> Iterator for Joined<T> {
     }
 }
 
-pub trait Joinable {
+pub struct Maybe<T: Joinable>(T::Joined);
+
+pub struct MaybeJoined<T: Joinable>(T::Joined);
+
+impl<T: Joinable> Iterator for MaybeJoined<T> {
+    type Item = Option<T::Item>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        Some(self.0.next())
+    }
+}
+
+impl<T: Joinable> Joinable for Maybe<T> {
+    type Joined = MaybeJoined<T>;
+    type Item = Option<T::Item>;
+
+    fn join(self) -> Joined<Self> {
+        Joined::new(MaybeJoined(self.0), std::usize::MAX)
+    }
+}
+
+pub trait Joinable: Sized {
     type Joined: Iterator<Item = Self::Item> + Sized;
     type Item;
 
     fn join(self) -> Joined<Self>;
+
+    fn maybe(self) -> Maybe<Self> {
+        Maybe(self.join().iter)
+    }
 }
 
 #[cfg(test)]
@@ -362,6 +387,46 @@ mod tests {
             assert_eq!(d_entry, 7);
             assert_eq!(e_entry, ());
             assert_eq!(entity, a);
+        }
+    }
+
+    #[test]
+    fn negate_len() {
+        let b = Entity(1);
+
+        let mut d: Storage<u32> = Storage::new();
+        let e: Storage<u8> = Storage::new();
+
+        d.insert(b, 12);
+
+        for (&d_entry, e_entry, entity) in (&d, !&e, Entities).join() {
+            assert_eq!(d_entry, 12);
+            assert_eq!(e_entry, ());
+            assert_eq!(entity, b);
+        }
+    }
+
+    #[test]
+    fn maybe() {
+        let b = Entity(1);
+
+        let mut d: Storage<u32> = Storage::new();
+        let mut e: Storage<u8> = Storage::new();
+
+        d.insert(b, 12);
+
+        for (&d_entry, e_entry, entity) in (&d, (&e).maybe(), Entities).join() {
+            assert_eq!(d_entry, 12);
+            assert_eq!(e_entry, None);
+            assert_eq!(entity, b);
+        }
+
+        e.insert(b, 32);
+
+        for (&d_entry, e_entry, entity) in (&d, (&e).maybe(), Entities).join() {
+            assert_eq!(d_entry, 12);
+            assert_eq!(e_entry, Some(&32));
+            assert_eq!(entity, b);
         }
     }
 
