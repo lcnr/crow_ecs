@@ -1,5 +1,6 @@
 use crate::{Join, Joinable, Joined};
 
+/// The iterator returned by calling `T::maybe()` on a `T` which implements `Joinable`.
 pub struct Maybe<T>(T);
 
 impl<T> Maybe<T> {
