@@ -109,6 +109,12 @@ impl<'a, T> Not for &'a &mut Storage<T> {
 
 pub struct NegatedIter<'a, T>(Iter<'a, T>);
 
+impl<'a, T> Join for NegatedIter<'a, T> {
+    fn may_skip(&mut self, _curr: usize) -> usize {
+        self.0.slice.iter().take_while(|opt| opt.is_some()).count()
+    }
+}
+
 impl<'a, T> Clone for NegatedIter<'a, T> {
     fn clone(&self) -> Self {
         NegatedIter(self.0.clone())
@@ -125,13 +131,21 @@ impl<'a, T> Iterator for NegatedIter<'a, T> {
             Some(())
         }
     }
+
+    fn nth(&mut self, n: usize) -> Option<()> {
+        if let Some(_) = self.0.nth(n) {
+            None
+        } else {
+            Some(())
+        }
+    }
 }
 
 impl<'a, T> Joinable for NegatedStorage<'a, T> {
     type Joined = NegatedIter<'a, T>;
     type Item = ();
 
-    fn join(self) -> Joined<Self> {
+    fn join(self) -> Joined<Self::Joined> {
         let storage = self.0.join();
         Joined::new(NegatedIter(storage.iter), std::usize::MAX)
     }
@@ -140,6 +154,15 @@ impl<'a, T> Joinable for NegatedStorage<'a, T> {
 pub struct Drain<'a, T>(&'a mut Storage<T>);
 
 pub struct DrainIter<'a, T>(&'a mut Storage<T>, usize);
+
+impl<'a, T> Join for DrainIter<'a, T> {
+    fn may_skip(&mut self, curr: usize) -> usize {
+        self.0.inner[curr..]
+            .iter()
+            .take_while(|opt| opt.is_none())
+            .count()
+    }
+}
 
 impl<'a, T> Iterator for DrainIter<'a, T> {
     type Item = T;
@@ -159,17 +182,25 @@ impl<'a, T> Joinable for Drain<'a, T> {
     type Joined = DrainIter<'a, T>;
     type Item = T;
 
-    fn join(self) -> Joined<Self> {
+    fn join(self) -> Joined<Self::Joined> {
         let len = self.0.inner.len();
         Joined::new(DrainIter(self.0, 0), len)
     }
 }
 
-pub struct Iter<'a, T>(slice::Iter<'a, Option<T>>);
+pub struct Iter<'a, T> {
+    slice: &'a [Option<T>],
+}
 
 impl<'a, T> Clone for Iter<'a, T> {
     fn clone(&self) -> Self {
-        Iter(self.0.clone())
+        Iter { slice: self.slice }
+    }
+}
+
+impl<'a, T> Join for Iter<'a, T> {
+    fn may_skip(&mut self, _curr: usize) -> usize {
+        self.slice.iter().take_while(|opt| opt.is_none()).count()
     }
 }
 
@@ -177,7 +208,18 @@ impl<'a, T> Iterator for Iter<'a, T> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<&'a T> {
-        self.0.next().map(Option::as_ref).flatten()
+        self.nth(0)
+    }
+
+    fn nth(&mut self, n: usize) -> Option<&'a T> {
+        if self.slice.len() > n {
+            let (start, end) = self.slice.split_at(n + 1);
+            self.slice = end;
+            start.last().unwrap().as_ref()
+        } else {
+            self.slice = &[];
+            None
+        }
     }
 }
 
@@ -185,8 +227,8 @@ impl<'a, T> Joinable for &'a Storage<T> {
     type Joined = Iter<'a, T>;
     type Item = &'a T;
 
-    fn join(self) -> Joined<Self> {
-        Joined::new(Iter(self.inner.iter()), self.inner.len())
+    fn join(self) -> Joined<Self::Joined> {
+        Joined::new(Iter { slice: &self.inner }, self.inner.len())
     }
 }
 
@@ -194,8 +236,8 @@ impl<'a, T> Joinable for &'a &Storage<T> {
     type Joined = Iter<'a, T>;
     type Item = &'a T;
 
-    fn join(self) -> Joined<Self> {
-        Joined::new(Iter(self.inner.iter()), self.inner.len())
+    fn join(self) -> Joined<Self::Joined> {
+        <&Storage<T>>::join(self)
     }
 }
 
@@ -203,18 +245,33 @@ impl<'a, T> Joinable for &'a &mut Storage<T> {
     type Joined = Iter<'a, T>;
     type Item = &'a T;
 
-    fn join(self) -> Joined<Self> {
-        Joined::new(Iter(self.inner.iter()), self.inner.len())
+    fn join(self) -> Joined<Self::Joined> {
+        <&Storage<T>>::join(self)
     }
 }
 
-pub struct IterMut<'a, T>(slice::IterMut<'a, Option<T>>);
+pub struct IterMut<'a, T> {
+    iter: slice::IterMut<'a, Option<T>>,
+}
 
 impl<'a, T> Iterator for IterMut<'a, T> {
     type Item = &'a mut T;
 
     fn next(&mut self) -> Option<&'a mut T> {
-        self.0.next().map(Option::as_mut).flatten()
+        self.iter.next().map(Option::as_mut).flatten()
+    }
+
+    fn nth(&mut self, n: usize) -> Option<&'a mut T> {
+        self.iter.nth(n).map(Option::as_mut).flatten()
+    }
+}
+
+impl<'a, T> Join for IterMut<'a, T> {
+    fn may_skip(&mut self, _curr: usize) -> usize {
+        let slice = mem::replace(&mut self.iter, [].iter_mut()).into_slice();
+        let next = slice.iter().take_while(|opt| opt.is_none()).count();
+        self.iter = slice.iter_mut();
+        next
     }
 }
 
@@ -222,9 +279,14 @@ impl<'a, T> Joinable for &'a mut Storage<T> {
     type Joined = IterMut<'a, T>;
     type Item = &'a mut T;
 
-    fn join(self) -> Joined<Self> {
+    fn join(self) -> Joined<Self::Joined> {
         let len = self.inner.len();
-        Joined::new(IterMut(self.inner.iter_mut()), len)
+        Joined::new(
+            IterMut {
+                iter: self.inner.iter_mut(),
+            },
+            len,
+        )
     }
 }
 
@@ -232,39 +294,43 @@ impl<'a, T> Joinable for &'a mut &mut Storage<T> {
     type Joined = IterMut<'a, T>;
     type Item = &'a mut T;
 
-    fn join(self) -> Joined<Self> {
-        let len = self.inner.len();
-        Joined::new(IterMut(self.inner.iter_mut()), len)
+    fn join(self) -> Joined<Self::Joined> {
+        <&mut Storage<T>>::join(self)
     }
 }
 
 pub struct Entities;
 
+impl Join for iter::Map<RangeFrom<usize>, fn(usize) -> Entity> {
+    fn may_skip(&mut self, _curr: usize) -> usize {
+        0
+    }
+}
+
 impl Joinable for Entities {
     type Joined = iter::Map<RangeFrom<usize>, fn(usize) -> Entity>;
     type Item = Entity;
 
-    fn join(self) -> Joined<Self> {
+    fn join(self) -> Joined<Self::Joined> {
         Joined::new((0..).map(Entity as fn(usize) -> Entity), std::usize::MAX)
     }
 }
 
-pub struct Joined<T: Joinable + ?Sized> {
-    iter: T::Joined,
+pub struct Joined<T> {
+    iter: T,
     len: usize,
     pos: usize,
 }
 
-impl<T: Joinable + ?Sized> Joined<T> {
-    pub fn new(iter: T::Joined, len: usize) -> Self {
+impl<T: Iterator + Join> Joined<T> {
+    pub fn new(iter: T, len: usize) -> Self {
         Self { iter, len, pos: 0 }
     }
 }
 
 impl<T> Clone for Joined<T>
 where
-    T: Joinable,
-    T::Joined: Clone,
+    T: Clone,
 {
     fn clone(&self) -> Self {
         Self {
@@ -275,13 +341,14 @@ where
     }
 }
 
-impl<T: Joinable + ?Sized> Iterator for Joined<T> {
+impl<T: Join + Iterator> Iterator for Joined<T> {
     type Item = T::Item;
 
     fn next(&mut self) -> Option<T::Item> {
         while self.pos < self.len {
-            if let Some(item) = self.iter.next() {
-                self.pos += 1;
+            let nth = self.iter.may_skip(self.pos);
+            self.pos += nth;
+            if let Some(item) = self.iter.nth(nth) {
                 return Some(item);
             } else {
                 self.pos += 1;
@@ -302,26 +369,40 @@ impl<T: Joinable> Iterator for MaybeJoined<T> {
     fn next(&mut self) -> Option<Self::Item> {
         Some(self.0.next())
     }
+
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        Some(self.0.nth(n))
+    }
+}
+
+impl<T: Joinable> Join for MaybeJoined<T> {
+    fn may_skip(&mut self, _curr: usize) -> usize {
+        0
+    }
 }
 
 impl<T: Joinable> Joinable for Maybe<T> {
     type Joined = MaybeJoined<T>;
     type Item = Option<T::Item>;
 
-    fn join(self) -> Joined<Self> {
+    fn join(self) -> Joined<Self::Joined> {
         Joined::new(MaybeJoined(self.0), std::usize::MAX)
     }
 }
 
 pub trait Joinable: Sized {
-    type Joined: Iterator<Item = Self::Item> + Sized;
+    type Joined: Iterator<Item = Self::Item> + Join + Sized;
     type Item;
 
-    fn join(self) -> Joined<Self>;
+    fn join(self) -> Joined<Self::Joined>;
 
     fn maybe(self) -> Maybe<Self> {
         Maybe(self.join().iter)
     }
+}
+
+pub trait Join {
+    fn may_skip(&mut self, curr: usize) -> usize;
 }
 
 #[cfg(test)]
@@ -436,5 +517,17 @@ mod tests {
         let _ = (Entities, Entities).join().clone();
         let _ = (Entities, Entities, Entities).join().clone();
         let _ = (Entities, Entities, Entities, Entities).join().clone();
+    }
+
+    #[test]
+    fn may_skip() {
+        let mut s = Storage::new();
+        s.insert(Entity(0), 17);
+        s.insert(Entity(4), 3);
+        s.insert(Entity(5), 4);
+
+        let mut iter = (&s).join();
+        assert_eq!(iter.next(), Some(&17));
+        assert_eq!(iter.iter.may_skip(1), 3);
     }
 }
