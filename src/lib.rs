@@ -27,7 +27,7 @@ pub struct Entity(pub usize);
 
 /// The default storage, use this if the component is fairly well used.
 ///
-/// In case there exists only a few entities with the given component,
+/// In case there exist only a few entities with the given component,
 /// consider using a [`SparseStorage`] instead.
 ///
 /// [`SparseStorage`]: struct.SparseStorage.html
