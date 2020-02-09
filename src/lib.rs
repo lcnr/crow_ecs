@@ -272,7 +272,7 @@ impl<'a, T> Joinable for &'a SparseStorage<T> {
                 inner: &self.inner,
                 position: 0,
             },
-            self.inner.keys().last().copied().unwrap_or(0),
+            self.inner.keys().last().copied().map_or(0, |v| v + 1),
         )
     }
 }
@@ -320,7 +320,7 @@ impl<'a, T> Joinable for &'a mut SparseStorage<T> {
     type Item = &'a mut T;
 
     fn join(self) -> Joined<Self::Joined> {
-        let len = self.inner.keys().last().copied().unwrap_or(0);
+        let len = self.inner.keys().last().copied().map_or(0, |v| v + 1);
         Joined::new(
             SparseIterMut {
                 inner: self.inner.iter_mut().peekable(),
@@ -372,6 +372,7 @@ impl Joinable for Entities {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Joined<T> {
     iter: T,
     len: usize,
@@ -384,19 +385,6 @@ impl<T: Iterator + Join> Joined<T> {
     }
 }
 
-impl<T> Clone for Joined<T>
-where
-    T: Clone,
-{
-    fn clone(&self) -> Self {
-        Self {
-            iter: self.iter.clone(),
-            len: self.len,
-            pos: self.pos,
-        }
-    }
-}
-
 impl<T: Join + Iterator> Iterator for Joined<T> {
     type Item = T::Item;
 
@@ -405,6 +393,7 @@ impl<T: Join + Iterator> Iterator for Joined<T> {
             let nth = self.iter.may_skip(self.pos);
             self.pos += nth;
             if let Some(item) = self.iter.nth(nth) {
+                self.pos += 1;
                 return Some(item);
             } else {
                 self.pos += 1;
@@ -552,6 +541,23 @@ mod tests {
             assert_eq!(d_entry, 12);
             assert_eq!(e_entry, 17);
             assert_eq!(entity, b);
+        }
+    }
+
+    #[test]
+    fn mut_sparse() {
+        let mut s = SparseStorage::<u32>::new();
+
+        s.insert(Entity(0), 7);
+        s.insert(Entity(3), 8);
+
+        for (s, e) in (&mut s, Entities).join() {
+            if e == Entity(0) {
+                assert_eq!(s, &mut 7);
+            } else {
+                assert_eq!(e, Entity(3));
+                assert_eq!(s, &mut 8);
+            }
         }
     }
 

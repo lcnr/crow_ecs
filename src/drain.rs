@@ -108,7 +108,7 @@ impl<'a, T> Joinable for SparseDrain<'a, T> {
     type Item = T;
 
     fn join(self) -> Joined<Self::Joined> {
-        let len = self.inner.keys().last().copied().unwrap_or(0);
+        let len = self.inner.keys().last().copied().map_or(0, |v| v + 1);
         Joined::new(self, len)
     }
 }
