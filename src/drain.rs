@@ -12,7 +12,7 @@ impl<T> Storage<T> {
 /// The iterator returned by `Storage::drain`.
 ///
 /// Using this struct in a `join` after mutating it
-/// can easily lead to unexpected, but not *unsound* behavior.
+/// can easily lead to unspecified, but not *unsound* behavior.
 pub struct Drain<'a, T>(&'a mut Storage<T>, usize);
 
 impl<'a, T> Join for Drain<'a, T> {
@@ -66,7 +66,7 @@ impl<T> SparseStorage<T> {
 /// The iterator returned by `SparseStorage::drain`.
 ///
 /// Using this struct in a `join` after mutating it
-/// can easily lead to unexpected, but not *unsound* behavior.
+/// can easily lead to unspecified, but not *unsound* behavior.
 pub struct SparseDrain<'a, T> {
     inner: &'a mut BTreeMap<usize, T>,
     position: usize,

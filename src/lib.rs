@@ -17,9 +17,11 @@ pub mod not;
 
 use maybe::Maybe;
 
+/// An entity usable as in index into storages.
+/// 
 /// This crate does currently not protect from generation missmatches.
-///
-/// To delete an entity one has to remove it from all storages, which is probably not the best approach.
+/// To delete an entity one has to remove it from all storages,
+/// which is somewhat error-prone.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Entity(pub usize);
 
@@ -372,6 +374,7 @@ impl Joinable for Entities {
     }
 }
 
+/// The iterator created by calling `<T as Joinable>::join()`.
 #[derive(Debug, Clone)]
 pub struct Joined<T> {
     iter: T,
@@ -404,6 +407,7 @@ impl<T: Join + Iterator> Iterator for Joined<T> {
     }
 }
 
+/// A trait used to optimize iterators created by `<T as Joinable>::join()`.
 pub trait Join {
     fn may_skip(&mut self, curr: usize) -> usize;
 }
