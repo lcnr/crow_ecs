@@ -18,7 +18,7 @@ pub mod not;
 use maybe::Maybe;
 
 /// An entity usable as in index into storages.
-/// 
+///
 /// This crate does currently not protect from generation missmatches.
 /// To delete an entity one has to remove it from all storages,
 /// which is somewhat error-prone.

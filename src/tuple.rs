@@ -4,7 +4,7 @@ use crate::{Join, Joinable, Joined};
 pub struct TupleJoin<T>(T);
 
 macro_rules! tuple_join {
-    ($($par:ident $var:ident: $e:tt),*) => {
+    ($($par:ident $var:ident $e:tt),*) => {
         impl<$($par: Iterator),*> Iterator for TupleJoin<($($par),*)>
         {
             type Item = ($($par::Item),*);
@@ -14,9 +14,7 @@ macro_rules! tuple_join {
             }
 
             fn nth(&mut self, n: usize) -> Option<Self::Item> {
-                $(let $var = (self.0).$e.nth(n);)*
-
-                match ($($var),*) {
+                match ($((self.0).$e.nth(n)),*) {
                     ($(Some($var)),*) => Some(($($var),*)),
                     _ => None,
                 }
@@ -44,8 +42,11 @@ macro_rules! tuple_join {
     }
 }
 
-tuple_join!(A a: 0, B b: 1);
-tuple_join!(A a: 0, B b: 1, C c: 2);
-tuple_join!(A a: 0, B b: 1, C c: 2, D d: 3);
-tuple_join!(A a: 0, B b: 1, C c: 2, D d: 3, E e: 4);
-tuple_join!(A a: 0, B b: 1, C c: 2, D d: 3, E e: 4, F f: 5);
+tuple_join!(A a 0, B b 1);
+tuple_join!(A a 0, B b 1, C c 2);
+tuple_join!(A a 0, B b 1, C c 2, D d 3);
+tuple_join!(A a 0, B b 1, C c 2, D d 3, E e 4);
+tuple_join!(A a 0, B b 1, C c 2, D d 3, E e 4, F f 5);
+tuple_join!(A a 0, B b 1, C c 2, D d 3, E e 4, F f 5, G g 6);
+tuple_join!(A a 0, B b 1, C c 2, D d 3, E e 4, F f 5, G g 6, H h 7);
+tuple_join!(A a 0, B b 1, C c 2, D d 3, E e 4, F f 5, G g 6, H h 7, I i 8);
