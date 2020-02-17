@@ -382,6 +382,28 @@ pub struct Joined<T> {
     pos: usize,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UniqueError {
+    Missing,
+    Multiple,
+}
+
+impl<T: Iterator + Join> Joined<T> {
+    /// Returns the only entity with the given components.
+    ///
+    /// Errors in case there are either zero or more than one
+    /// entity.
+    pub fn unique(mut self) -> Result<T::Item, UniqueError> {
+        let item = self.next();
+        match (item, self.next()) {
+            (Some(item), None) => Ok(item),
+            (Some(_), Some(_)) => Err(UniqueError::Multiple),
+            (None, None) => Err(UniqueError::Missing),
+            (None, Some(_)) => unreachable!(),
+        }
+    }
+}
+
 impl<T: Iterator + Join> Joined<T> {
     pub fn new(iter: T, len: usize) -> Self {
         Self { iter, len, pos: 0 }
@@ -621,6 +643,26 @@ mod tests {
             assert_eq!(e_entry, ());
             assert_eq!(entity, b);
         }
+    }
+
+    #[test]
+    fn unique() {
+        let a = Entity(0);
+        let b = Entity(1);
+        let c = Entity(4);
+
+        let mut d: Storage<u32> = Storage::new();
+        let mut e: Storage<u8> = Storage::new();
+
+        d.insert(a, 7);
+        d.insert(b, 12);
+        e.insert(b, 17);
+        e.insert(c, 0);
+
+        let (&d_entry, &e_entry, entity) = (&d, &e, Entities).join().unique().unwrap();
+        assert_eq!(d_entry, 12);
+        assert_eq!(e_entry, 17);
+        assert_eq!(entity, b);
     }
 
     #[test]
